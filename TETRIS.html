@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game Tetris</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #game-title {
+      position: absolute;
+      top: 20px;
+      font-size: 2rem;
+      font-weight: 600;
+      color: #00e5ff;
+      text-shadow: 0 0 5px #4dd0e1, 0 0 10px #00e5ff, 0 0 20px #00acc1;
+      animation: glowTitle 2s infinite ease-in-out;
+    }
+
+    @keyframes glowTitle {
+      0% { text-shadow: 0 0 5px #4dd0e1, 0 0 10px #00e5ff, 0 0 20px #00acc1; }
+      50% { text-shadow: 0 0 10px #b2ebf2, 0 0 20px #00e5ff, 0 0 30px #00acc1; }
+      100% { text-shadow: 0 0 5px #4dd0e1, 0 0 10px #00e5ff, 0 0 20px #00acc1; }
+    }
+
+    @keyframes glowAuthor {
+      0% { text-shadow: 0 0 5px #fff176, 0 0 10px #ffeb3b, 0 0 20px #fbc02d; }
+      50% { text-shadow: 0 0 10px #fff59d, 0 0 20px #ffeb3b, 0 0 30px #fbc02d; }
+      100% { text-shadow: 0 0 5px #fff176, 0 0 10px #ffeb3b, 0 0 20px #fbc02d; }
+    }
+
+    #container {
+      display: flex;
+      gap: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      max-height: 90vh;
+    }
+
+    #sidebar {
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    #sidebar h2 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      padding-bottom: 5px;
+    }
+
+    #sidebar p {
+      margin: 10px 0;
+    }
+
+    #controls button, #game-over button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: white;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    #controls button {
+      background-color: #ff9800;
+    }
+
+    #controls button:hover {
+      background-color: #e68900;
+    }
+
+    #game-over button {
+      background-color: #f44336;
+    }
+
+    #game-over {
+      display: none;
+    }
+
+    canvas {
+      background-color: #f0f0f0;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+    }
+
+    #author-names {
+      margin-top: auto;
+      padding: 10px;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    #author-names p {
+      margin: 4px 0;
+      padding: 2px;
+      font-weight: 500;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #ffeb3b;
+      text-shadow: 0 0 5px #fff176, 0 0 10px #ffeb3b, 0 0 20px #fbc02d;
+      animation: glowAuthor 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-title">Tetris Game</div>
+
+  <div id="container">
+    <div id="sidebar">
+      <h2>Thông tin</h2>
+      <p>Điểm số: <span id="score">0</span></p>
+      <p>Cấp bậc: <span id="level">1</span></p>
+      <div id="controls">
+        <button onclick="toggleGame()">Bắt đầu / Tạm dừng</button>
+      </div>
+      <div id="game-over">
+        <button onclick="restartGame()">Chơi lại</button>
+      </div>
+      <p style="font-size: 0.9rem; margin-top: 15px;">
+        ⬅ ➡ ⬇: Di chuyển<br>
+        ⬆: Xoay khối<br>
+        Space: Rơi nhanh
+      </p>
+
+      <div id="author-names">
+        <p>Nguyễn Minh Khang</p>
+        <p>Nguyễn Chí Thanh</p>
+        <p>Bùi Vì Khang</p>
+        <p>Lê Hàn Quốc Đạt</p>
+        <p>Đoàn Văn Bảo</p>
+      </div>
+    </div>
+
+    <canvas id="my-canvas" width="276" height="460"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("my-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const cols = 12, rows = 20;
+    const tetrominos = [
+      [[0,1,0],[1,1,1]],
+      [[2,0,0],[2,2,2]],
+      [[0,0,3],[3,3,3]],
+      [[4,4],[4,4]],
+      [[0,5,5],[5,5,0]],
+      [[6,6,0],[0,6,6]],
+      [[0,0,0,0],[7,7,7,7],[0,0,0,0]]
+    ];
+    const colors = ["white", "#9c27b0", "#00bcd4", "#3f51b5", "#ffeb3b", "#ff9800", "#4caf50", "#f44336"];
+
+    let board;
+    let current = null;
+    let pos;
+    let state;
+
+    function initGame() {
+      board = Array.from({length: rows}, () => Array(cols).fill(0));
+      current = null;
+      pos = { x: 4, y: 0 };
+      state = { playing: true, score: 0, level: 1, lastTime: 0, speed: 500 };
+      document.getElementById("score").textContent = 0;
+      document.getElementById("level").textContent = 1;
+      document.getElementById("game-over").style.display = "none";
+    }
+
+    function toggleGame() {
+      if (!state.playing) return;
+      state.playing = !state.playing;
+    }
+
+    function drawTile(x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * 23, y * 23, 22, 22);
+    }
+
+    function drawBoard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      board.forEach((row, y) =>
+        row.forEach((val, x) => {
+          if (val) drawTile(x, y, colors[val]);
+        })
+      );
+      if (current) {
+        getCoords(current, pos).forEach(({x, y, z}) => {
+          if (z) drawTile(x, y, colors[z]);
+        });
+      }
+    }
+
+    function getCoords(tet, pos) {
+      return tet.flatMap((row, i) =>
+        row.map((val, j) => ({ x: pos.x + j, y: pos.y + i, z: val }))
+      );
+    }
+
+    function spawnTetromino() {
+      current = tetrominos[Math.floor(Math.random() * tetrominos.length)];
+      pos = { x: 4, y: 0 };
+      if (!isValid(pos)) {
+        state.playing = false;
+        document.getElementById("game-over").style.display = "block";
+      }
+    }
+
+    function isValid(posCheck, tet = current) {
+      return getCoords(tet, posCheck).every(({x, y, z}) => {
+        if (!z) return true;
+        return (
+          x >= 0 && x < cols &&
+          y >= 0 && y < rows &&
+          board[y][x] === 0
+        );
+      });
+    }
+
+    function place() {
+      getCoords(current, pos).forEach(({x, y, z}) => {
+        if (z) board[y][x] = z;
+      });
+    }
+
+    function clearRows() {
+      let cleared = 0;
+      board = board.reduce((acc, row) => {
+        if (row.every(cell => cell !== 0)) {
+          acc.unshift(Array(cols).fill(0));
+          cleared++;
+        } else {
+          acc.push(row);
+        }
+        return acc;
+      }, []);
+      if (cleared > 0) {
+        state.score += cleared * 100;
+        if (state.score >= state.level * 500) {
+          state.level++;
+          state.speed = Math.max(100, state.speed - 50);
+        }
+        document.getElementById("score").textContent = state.score;
+        document.getElementById("level").textContent = state.level;
+      }
+    }
+
+    function loop(time) {
+      if (!state.lastTime) state.lastTime = time;
+      const delta = time - state.lastTime;
+
+      if (state.playing && delta > state.speed) {
+        const newPos = { x: pos.x, y: pos.y + 1 };
+        if (isValid(newPos)) {
+          pos = newPos;
+        } else {
+          place();
+          clearRows();
+          spawnTetromino();
+        }
+        state.lastTime = time;
+      }
+
+      drawBoard();
+      requestAnimationFrame(loop);
+    }
+
+    function rotate(matrix) {
+      return matrix[0].map((_, i) => matrix.map(r => r[i])).reverse();
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (!state.playing) return;
+      if (e.code === "ArrowLeft" && isValid({ x: pos.x - 1, y: pos.y })) pos.x--;
+      if (e.code === "ArrowRight" && isValid({ x: pos.x + 1, y: pos.y })) pos.x++;
+      if (e.code === "ArrowDown" && isValid({ x: pos.x, y: pos.y + 1 })) pos.y++;
+      if (e.code === "ArrowUp") {
+        const rotated = rotate(current);
+        if (isValid(pos, rotated)) current = rotated;
+      }
+      if (e.code === "Space") {
+        while (isValid({ x: pos.x, y: pos.y + 1 })) pos.y++;
+      }
+      drawBoard();
+    });
+
+    function restartGame() {
+      initGame();
+      spawnTetromino();
+    }
+
+    initGame();
+    spawnTetromino();
+    drawBoard();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
